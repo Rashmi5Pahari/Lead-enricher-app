@@ -17,11 +17,67 @@ class EnricherAccessor:
 
 
 def _gen_hook(name: str, top_title: str) -> str:
+    # legacy simple hook (kept for compatibility)
     if top_title:
         return f"I enjoyed your recent work, \"{top_title}\", and thought it connects to [our product/idea]."
     if name:
         return f"I enjoyed learning about your work, {name}."
     return "I enjoyed your recent work."
+
+
+def _truncate_words(s: str, max_words: int) -> str:
+    if not s:
+        return s
+    parts = s.split()
+    if len(parts) <= max_words:
+        return s
+    return " ".join(parts[:max_words]).rstrip(".,;: ")
+
+
+def _generate_person_hook(name: str, top_title: str, top_year: str, topics) -> str:
+    # topics: list or comma string
+    topic_list = []
+    if isinstance(topics, str) and topics:
+        topic_list = [t.strip() for t in topics.split(",") if t.strip()]
+    elif isinstance(topics, list):
+        topic_list = [t for t in topics if t]
+
+    # prefer a concise topic
+    topic = topic_list[0] if topic_list else None
+
+    # If we have a paper title, include it (or year if title too long)
+    if top_title:
+        # short title (avoid extremely long titles)
+        title_short = _truncate_words(re.sub(r"\s+", " ", str(top_title)).strip(), 12)
+        if topic:
+            s = f"I noticed you're working on {topic} and recently published \"{title_short}\"."
+        elif top_year:
+            s = f"I noticed your {top_year} publication, \"{title_short}\"."
+        else:
+            s = f"I noticed your paper \"{title_short}\"."
+        return _truncate_words(s, 22)
+
+    # If no paper but topics exist, summarize
+    if topic:
+        s = f"I noticed your work on {topic}."
+        return _truncate_words(s, 22)
+
+    # insufficient signal
+    return ""
+
+
+def _generate_company_hook(company: str, company_summary: str) -> str:
+    if not company_summary and not company:
+        return ""
+    # derive a short descriptor from company_summary
+    desc = company_summary or ""
+    desc = re.sub(r"\s+", " ", desc).strip()
+    desc_short = _truncate_words(desc, 12)
+    if company:
+        s = f"I noticed {company} is building {desc_short}."
+    else:
+        s = f"I noticed the company is building {desc_short}."
+    return _truncate_words(s, 22)
 
 def enrich_row(row: Dict[str, Any], settings: Dict[str, Any]) -> Dict[str, Any]:
     # read Apollo-style columns and build search name
@@ -96,6 +152,16 @@ def enrich_row(row: Dict[str, Any], settings: Dict[str, Any]) -> Dict[str, Any]:
     confidence = confidence_label(best_score, threshold_high=85, threshold_med=65)
     hook = _gen_hook(name, top_title)
 
+    # New email-ready hooks
+    hook_person = _generate_person_hook(name, top_title, top_year, topics)
+    hook_company = _generate_company_hook(company, company_summary)
+    if hook_person:
+        hook_final = hook_person
+    elif hook_company:
+        hook_final = hook_company
+    else:
+        hook_final = "I came across your team’s work in antibody R&D and wanted to reach out."
+
     # Person Work Line: only write when author matched with sufficient score
     person_work_line = ""
     person_work_source = "none"
@@ -139,6 +205,9 @@ def enrich_row(row: Dict[str, Any], settings: Dict[str, Any]) -> Dict[str, Any]:
 
     out = {
         "Personalization Hook": hook,
+        "Hook_Person": hook_person,
+        "Hook_Company": hook_company,
+        "Hook_Final": hook_final,
         "Top Paper Title": top_title,
         "Top Paper Year/Date": top_year,
         "Topics": ", ".join(topics) if isinstance(topics, list) else topics,

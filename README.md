@@ -85,3 +85,7 @@ For reliable public access, prefer Streamlit Community Cloud or a hosted provide
 
 - Do not commit `.venv`; create it locally with `python -m venv .venv`.
 - Do not commit contact CSVs (may contain PII). Keep exported CSVs local and out of source control.
+
+**Data privacy**
+
+- Uploads are processed in-memory and not stored. Output is generated in-memory for download.
