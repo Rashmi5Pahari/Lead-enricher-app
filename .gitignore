@@ -1,0 +1,33 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+venv/
+
+# Streamlit cache
+.streamlit/
+
+# Data exports (avoid committing PII)
+*.csv
+# Python virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Streamlit cache
+.streamlit/
+
+# Local cache
+.cache/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# CSV exports (often contain data/PII). Remove this line if you want sample CSVs in the repo.
+*.csv
